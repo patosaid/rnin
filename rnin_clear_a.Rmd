@@ -1,0 +1,451 @@
+---
+title: "DeepLearning para estimación de Clear A"
+knit: (function(input_file, encoding) {
+  out_dir <- 'docs';
+  rmarkdown::render(input_file,
+ encoding=encoding,
+ output_file=file.path(dirname(input_file), out_dir, 'index.html'))})
+ 
+author: "Patricio Said"
+date: "20 de diciembre de 2018"
+output: 
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+    theme: cosmo #spacelab  #yeti #paper #flatly #cosmo install.packages("prettydoc")
+#    highlight: textmate
+
+---
+
+```{r librerias, include=FALSE}
+library(dplyr)
+library(tidyr)
+library(caret)
+```
+ ** DOCUMENTO INCOMPLETO **    
+ 
+# Introducción
+El siguiente código desarrolla una RNA para el cálculo de rendimiento de Clear A.
+Se realizará una primera búsqueda general por medio de un grid y ramdom search con el objetivo de encontrar rangos de algunos parámetros:  
+
+  * Funciónes de activación.
+  * Arquitectura, cantidad de capas ocultas y nodos.
+  * Variables de importancia y cuáles se podrían descartar.
+  * Tasa de aprendizaje.
+  * Cantidad de epocas, iteraciones, y conjuntos de ejemplos.
+  * Otros parámetros: L1, L2, anneling rate, momentum, epsilon, rho, etc...
+
+# Paso 1: Importar Datos
+Se importan los datos con la funcion `readxl()` 
+```{r importar datos}
+library(readxl)
+datos <- read_excel("~/Documentos/rnin_git/rnin/datos/DATOS2.xlsx")
+# Imprimir dimensión
+dim(datos)
+```
+
+Se seleccionaron algunas variables de interés
+```{r seleccionando  columnas }
+datos <- datos[,c(			 "cod_id_FUNDO"
+                        ,"COD_Z_CPINO"                              #2 cod zona prod 1 a 10
+                        ,"DSC_ESQUEMA"                              #2 Esquema
+                        ,"TIPO_TIERRA"                              #2
+                      
+                        ,"N24_ALTURA_MEDIA"                         #1              
+                        ,"N24_ALT_MEDIA_DOMINA"                  
+                        ,"N24_IND_MEDIO_SITIO"                      #2   
+                        ,"N24_DAP_MEDIO"                            #1    
+                        ,"N24_DAP_MEDIO_DOMINA"                    
+                        ,"N24_ALT_MEDIA_PODA"                       #1    
+                        ,"N24_COEF_VARIACION_DIAMETRO"              #2    
+                        ,"N24_DENSIDAD_PODADOS"                     #1    
+                        ,"N24_DENSIDAD_ACTUAL"                      #1    
+                                         
+                        ,"PROP_PODADA"                              #1    
+                                       ,"OT"                           
+                        ,"EDAD_OT"                                  #1
+                        ,"EDAD_COSECHA"                             #2                                                 
+                        ,"ANOS_PROYECTADOS"
+	                  		,"PLI"                            
+                                               ###### SALIDAS  
+                        ,"V_R_INTR_CLEAR_A"                         #?      
+                        ,"V_R_CLASE_CLEAR_A"                        #? 
+                        ,"V_R_INTR_CLEAR_A_pp"                      #1 Clear A %  
+                        ,"V_R_CLASE_CLEAR_A_pp"                     #? ver si es igual...  
+                        ,"VOLUROD_SF_CLEAR_A_pp"                    #comparar resultados 
+                        ,"VOLUROD_SF_CLEAR_A"                       # volur clear a 
+ 
+                        ,"V_R_INTR_CLEAR_B"                         #1 Clear B
+                        ,"V_R_INTR_CLEAR_B_pp"                      #1 Clear b %
+                        ,"VOLUROD_SF_CLEAR_B"                       # volu 
+                        ,"VOLUROD_SF_CLEAR_B_pp"                    # volu
+            
+                        ,"V_R_INTR_IND"                             #1 IND 
+                        ,"V_R_INTR_IND_pp"                          #1 IND %
+                        ,"VOLUROD_SF_IND"                           # volu ind
+                        ,"VOLUROD_SF_IND_pp"                        #
+                        
+
+	                  		,"V_R_INTR_PULP"                            # PULP
+                        ,"V_R_INTR_PULP_pp"                         # pulp %
+                        ,"VOLUROD_SF_PULP"                          # pulp volurod
+                        ,"VOLUROD_SF_PULP_pp"                 
+                        
+		                  	,"suma_de_pp"                               # suma de %
+                        ,"VOL_TOTAL"                                # Vol total
+                        ,"area"                                     # area
+                        ,"REND_REAL_TOTAL"                          # REND
+                        ,"REND_T_VOLUR"                             # rend volu
+                        ,"REND_CLEAR_A_REAL"                  
+                        ,"REND_CLEAR_B_REAL"                  
+                        ,"REND_IND_REAL"                      
+                        ,"REND_PULP_REAL"
+                      
+                        ) ]
+#Imprimir dimensión
+dim(datos)
+```
+
+
+# Paso 2: Limpiar los datos
+Se cambiaron nombres de las columnas:
+```{r cambio de nombre columnas}
+#CAMBIAR DE NOMBRE ALGUNAS VARIABLES
+names(datos) <- gsub("N24_ALTURA_MEDIA", "ALTURA_MEDIA" , names(datos))
+names(datos) <- gsub("N24_DAP_MEDIO", "DAP_MEDIO" , names(datos))
+names(datos) <- gsub("N24_DENSIDAD_ACTUAL", "DENSIDAD" , names(datos))
+names(datos) <- gsub("N24_IND_MEDIO_SITIO", "IMS" , names(datos))
+names(datos) <- gsub("N24_ALT_MEDIA_PODA", "ALT_MEDIA_PODA" , names(datos))
+names(datos) <- gsub("N24_DENSIDAD_PODADOS", "DENSIDAD_PODADOS" , names(datos))
+#names(datos) <- gsub("EDAD_OT", "EDAD_INVENTARIO" , names(datos))
+names(datos) <- gsub("TIPO_TIERRA", "DSC_SUELO" , names(datos))
+names(datos) <- gsub("N24_ALT_MEDIA_DOMINA", "ALT_MEDIA_DOMINANTE" , names(datos))
+names(datos) <- gsub("DAP_MEDIO_DOMINA", "DAP_MEDIO_DOMINANTE" , names(datos))
+names(datos) <- gsub("DSC_ESQUEMA", "ESQUEMA" , names(datos))
+```
+
+***
+## Columna Esquema
+La columna `ESQUEMA` no se encuentra "estandarizada" (presenta diferentes nombres para una misma clase)
+```{r estandarizar ESQUEMA}
+#Imprimir las clases que posee la ESQUEMA
+unique(datos$ESQUEMA)
+#Cambiando los nombres
+datos$ESQUEMA[datos$ESQUEMA == "INTENSIVO 2"]<- "INTENSIVO"
+datos$ESQUEMA[datos$ESQUEMA == "INTENSIVO 1"]<- "INTENSIVO"
+datos$ESQUEMA[datos$ESQUEMA == "MULTIPROPOSITO 2"]<- "MULTIPROPOSITO"
+datos$ESQUEMA[datos$ESQUEMA == "MULTIPROPOSITO 1"]<- "MULTIPROPOSITO"
+datos$ESQUEMA[datos$ESQUEMA == "EXTENSIVO CON PODA"]<- "MULTIPROPOSITO"
+datos$ESQUEMA[datos$ESQUEMA == "PULPABLE"]<- "PULPABLE"
+datos$ESQUEMA[datos$ESQUEMA == "EXTENSIVO"]<- "EXTENSIVO"
+#Imprimir las clases despues del cambio de nombre
+unique(datos$ESQUEMA)
+```
+
+## Borrar datos faltantes
+Se borrarán las observaciones (filas) que presentan NAs en las columnas que se utilizarán en el modelo. Función `drop_na()` del paquete `tidyr`.
+
+### Borrar NA's en DAP
+Borrado de NA's en la columna de `DAP_MEDIO`, observando la cantidad de registros eliminados
+
+```{r eliminar NA en DAP}
+library(tidyr)
+summary(datos$DAP_MEDIO)
+# Imprimir la cantidad de NA's
+sum(is.na(datos$DAP_MEDIO))
+datos <- drop_na(datos, ALTURA_MEDIA)
+# Imprimir la cantidad de NA's despues del filtrado
+sum(is.na(datos$DAP_MEDIO))
+```
+
+## Borrando NA's en otras columnas
+```{r eliminar NA}
+datos <- drop_na(datos, VOL_TOTAL)
+datos <- drop_na(datos, DSC_SUELO)
+datos <- drop_na(datos, COD_Z_CPINO)
+#datos1 <- drop_na(datos1, PLI) # Filtrar en caso de uso de PLI
+
+#IMPRIMIR dimensión de datos
+dim(datos)
+```
+
+## Filtrado de variables
+Se filtran variables según los alcances del proyecto.  
+
+* Se descartan los rodales menores a X años de edad.  
+* Superficie cosechada mayor a 5 hectáreas.  
+* Observaciones incoherentes, por ejemplo, poda en rodales con esquema pulpable.
+```{r filtrado}
+datos <- filter(datos, datos$ALTURA_MEDIA >= 15 )
+datos <- filter(datos, datos$EDAD_OT >= 15 )
+datos <- filter(datos, datos$VOL_TOTAL >= 1000 )
+datos <- filter(datos, ( datos$ESQUEMA != "PULPABLE") | 
+                   (datos$ESQUEMA == "PULPABLE" & datos$DENSIDAD_PODADOS == 0 
+                    & datos$V_R_INTR_CLEAR_A < 20))
+datos <- filter(datos, datos$area >= 5 )
+
+```
+
+## Calculando nuevas variables
+Se calculan: el Area basal, y sección normal con la función `mutate`
+Se crea una nueva columna con la variable `SECCION_NORMAL` para el càlculo del `AREA_BASAL`.  
+Fórmula del área basal:  
+
+$$ Area  \;    Basal = Densidad *\pi *  \left (  \frac{DAP }{200}\right )^{2} $$
+
+```{r area basal y seccion normal}
+datos <- mutate(datos, SECCION_NORMAL= pi*( (DAP_MEDIO/100)^2 )/4 )
+#datos <- datos[,!colnames(datos)=="AREA_BASAL"] #(elimina Area Basal)
+datos <- mutate(datos, AREA_BASAL = SECCION_NORMAL * DENSIDAD) 
+datos <- mutate(datos, CLEAR_pp = V_R_INTR_CLEAR_A_pp + V_R_INTR_CLEAR_B_pp)
+
+```
+
+```{r uploadRpubs, eval = FALSE , include= FALSE}
+# devtools::install_github("rstudio/rsconnect", ref = "bugfix/multi-status-header")
+library(rsconnect)
+result <- rpubsUpload("My document title", "REND_CLEAR_A.html")
+if (!is.null(result$continueUrl)) 
+    browseURL(result$continueUrl) else stop(result$error)
+
+# update the same document with a new title
+updateResult <- rpubsUpload("My updated title", "REND_CLEAR_A.html", result$id)
+```
+
+```{r include= FALSE}
+#install.packages("kableExtra")
+#devtools::install_github("haozhu233/kableExtra")
+library(knitr)
+library(kableExtra)
+library(tidyverse)
+library(tidyr)
+```
+
+# Paso 3: Exploración
+
+Paquetes `tidyr`, `knitr` y `kableExtra` se usaron para construir gráficas con resúmenes.  
+
+```{r tabla , warning=FALSE , message=FALSE}
+# Esta parte calcula los min max etc de las variables seleccionadas
+# De salida se obtiene un vector
+resumen <- datos %>% 
+  select( ALTURA_MEDIA , DAP_MEDIO , DENSIDAD , IMS , EDAD_OT) %>% 
+    rename_all( funs(
+        stringr::str_replace_all(., "_", ".") )) %>% 
+    summarise_each(funs( min = min,
+                       mean = mean,
+                       max = max,
+                       sd = sd)) %>% 
+    round(. ,1)
+
+# Como la salida es un vector este se utiliza tidyr para cambiar la forma
+resumen_f<- resumen %>% 
+  gather(stat, val) %>% 
+  separate(stat, into = c("var", "stat"), sep = "_") %>% 
+  spread(stat, val) %>% 
+  select(var, min, mean, max , sd) %>% 
+  rename("Variables" = var , "Mínimo" = min , 
+         "Media" = mean , "Máximo" = max , "Desv. Estandar" =sd )
+
+# Al salir el dataframe fijarse en el orden de las variables 
+
+#Cambiar nombres para renderizar
+variables <- c("Altura Media", "DAP Medio" , "Densidad" , "Edad en Inventario",
+               "Índice de Sitio")
+resumen_f$Variables <- variables
+
+#función para renderizar la tabla en formato HTML
+kable(resumen_f) %>% 
+  kable_styling()
+
+
+```
+
+## Gráficas con ggplot
+
+Visualizar con `ggplot`... *FALTA*
+
+# Paso 4: Preprocesamiento
+
+El conjunto de datos se debe procesar para prepararlos antes de entrar al modelo.
+
+## Variables categóricas a factor
+
+La variable `Zona de Crecimiento` describe la zona por medio de números, pero debe trabajarse como variable categórica, por ende, debe transformarse a una tipo factor.
+
+* Las variables categóricas son: 
+     + Zona de crecimiento
+     + Esquema de manejo
+     + Tipo de suelo
+     + PLI __(ver si incluir)__ 
+     
+```{r factor}
+datos$COD_Z_CPINO <- factor(datos$COD_Z_CPINO)
+datos$ESQUEMA <- factor(datos$ESQUEMA)
+datos$DSC_SUELO   <- factor(datos$DSC_SUELO)
+```
+  
+## Transformando a Binarios
+
+En las RNA's las entradas categóricas deben trabajarse con variables __dummies__. 
+
+Se trabaja con el paquete `caret` y la función `dummyVars`
+```{r cargar caret}
+library(caret)
+```
+
+```{r dummy}
+#se guardó info sobre ID y OT ( en todo caso innecesario)
+cod_id_FUNDO <- datos$cod_id_FUNDO
+datos <- subset( datos, select = - c(cod_id_FUNDO, OT) )
+dmy <- dummyVars(" ~ .", data = datos)
+trsf <- data.frame(predict(dmy, newdata = datos))
+#Imprimir un head de las primeras 5 columnas
+print(head(trsf[1:5]))
+```
+
+El dataframe `trsf` posee las variables transformadas a variables binarias.  
+
+## Partición en tres sets
+
+Para entrenar una red que presente un mejor rendimiento, los datos se dividieron en tres partes, con el fin de no seleccionar un modelo sobreajustado.  
+
+### Conectar H2O
+
+```{r conectar h2o, message=FALSE, warning=FALSE, include=FALSE}
+library(h2o)
+h2o.init()
+```
+
+Se traspasan los datos al cluster de H2O
+
+```{r datos a h2o}
+datos_h2o <- as.h2o(trsf)
+```
+
+```{r crear train test datasets}
+splits <- h2o.splitFrame(datos_h2o , ratios = c(0.70 , 0.15 ), seed= 1234)
+train <- h2o.assign(splits[[1]] , key= "train")
+valid <- h2o.assign(splits[[2]] , key = "valid")
+test <-  h2o.assign(splits[[3]] , key = "test")
+```
+
+# Paso 5: Construcción de la Red
+
+## Selección de variables de entrada y salida
+
+```{r variables, include= FALSE }
+#nombres <- data.frame( variables = colnames(datos_h2o), num = c(1:ncol(datos_h2o)))
+#print(nombres$variables)
+#colnames(datos_h2o)
+variables_entradas<- c( "COD_Z_CPINO.1",
+                "COD_Z_CPINO.2",
+                "COD_Z_CPINO.3",
+                "COD_Z_CPINO.4",
+                "COD_Z_CPINO.5",
+                "COD_Z_CPINO.6",
+                "COD_Z_CPINO.7",
+                "COD_Z_CPINO.8",
+                "COD_Z_CPINO.9",
+                "COD_Z_CPINO.10",
+                "ESQUEMAEXTENSIVO",
+                "ESQUEMAINTENSIVO",
+                "ESQUEMAMULTIPROPOSITO",
+                "ESQUEMAPULPABLE",
+                "DSC_SUELO.ALUVIALES",
+                "DSC_SUELO.ARCILLOSO",
+                "DSC_SUELO.ARENAS",
+                "DSC_SUELO.GRANITICOS"      ,
+                "DSC_SUELO.METAMORFICOS"      ,
+                "DSC_SUELO.SECANO"           ,
+                "DSC_SUELO.SEDIMENTO.MARINO"  ,
+                "DSC_SUELO.TRUMAOS"         ,
+                "ALTURA_MEDIA",
+                "ALT_MEDIA_DOMINANTE"       ,
+                "IMS"                         ,
+                "DAP_MEDIO"                  ,
+                "DAP_MEDIO_DOMINANTE"         ,
+                "ALT_MEDIA_PODA"             ,
+                "DENSIDAD_PODADOS"           ,
+                "DENSIDAD"                    ,
+                "PROP_PODADA"                ,
+                "PLI"                        , #PLI #######
+                "AREA_BASAL"   )
+
+    respuesta <- "REND_CLEAR_A_REAL"
+    
+## [39] "V_R_INTR_CLEAR_A_pp"         "V_R_CLASE_CLEAR_A_pp"       
+## [41] "VOLUROD_SF_CLEAR_A_pp"       "VOLUROD_SF_CLEAR_A"         
+## [43] "V_R_INTR_CLEAR_B"            "V_R_INTR_CLEAR_B_pp"        
+## [45] "VOLUROD_SF_CLEAR_B"          "VOLUROD_SF_CLEAR_B_pp"      
+## [47] "V_R_INTR_IND"                "V_R_INTR_IND_pp"            
+## [49] "VOLUROD_SF_IND"              "VOLUROD_SF_IND_pp"          
+## [51] "V_R_INTR_PULP"               "V_R_INTR_PULP_pp"           
+## [53] "VOLUROD_SF_PULP"             "VOLUROD_SF_PULP_pp"         
+## [55] "suma_de_pp"                  "VOL_TOTAL"                  
+## [57] "area"                        "REND_REAL_TOTAL"            
+## [59] "REND_T_VOLUR"                          
+## [61] "REND_CLEAR_B_REAL"           "REND_IND_REAL"              
+## [63] "REND_PULP_REAL"              "SECCION_NORMAL"             
+## [65]                "CLEAR_pp"                   
+## [67] "DSC_ESQUEMA.EXTENSIVO"       "DSC_ESQUEMA.INTENSIVO"      
+## [69] "DSC_ESQUEMA.MULTIPROPOSITO"  "DSC_ESQUEMA.PULPABLE" )
+```
+
+```{r mostrar nombre entradas}
+print(variables_entradas)
+```
+
+### Especificar Hiperparámetros
+
+Poner aca un blabla sobre los hiper
+
+```{r hyper-parametros}
+hyper_params <- list(
+                activation=c("Rectifier" , "Tanh" , "Maxout"),
+                hidden = list( c(20), c(20,20), c(300, 300) ,c(128,128,128) , c(64,64,64,64) ),
+                input_dropout_ratio =  c(0, 0.05, 0.1,0.2), # 0.1 or .2 sugerido , mejora generalizacion
+                adaptive_rate = TRUE,
+              #  rho = c(0.95), 
+               # epsilon = c(1e-10),
+                rate = c(0.01, 0.05,0.1,0.005),
+               # rate_annealing = 1e-06,
+              ##  rate_decay = c( 0.3 ,0.4 ,0.1,0.05) ,
+               # momentum_start = 0,
+                momentum_ramp = c(1e+06,1e+04,1e+05),
+                momentum_stable = c(0), 
+                nesterov_accelerated_gradient = TRUE,
+               # hidden_dropout_ratios = NULL, 
+                 #l1 = 1e-5,
+                # l2 =1e-5,
+                loss =   "Quantile" ,
+                distribution = "AUTO",
+             #nfolds = c(4),    # para crossvalidation
+  overwrite_with_best_model = T,
+  epochs = c( 200, 300,500),
+  train_samples_per_iteration = c(40, 100 , 200,-2,-1)
+)
+```
+
+### Search Criteria
+
+```{r search_criteria}
+search_criteria <- list(
+                  strategy = "RandomDiscrete",
+                  stopping_tolerance = 0.0005 ,
+                  max_runtime_secs = 5000,
+                  max_models = 10000 ,
+                  stopping_rounds = 1000,
+                  stopping_metric = "MSE"
+                
+                )
+```
+
+
+
+
+
+
+
