@@ -44,6 +44,7 @@ library(readxl)
 datos <- read_excel("~/Documentos/rnin_git/rnin/datos/DATOS2.xlsx")
 # Imprimir dimensión
 dim(datos)
+
 ```
 
 Se seleccionaron algunas variables de interés
