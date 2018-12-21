@@ -316,9 +316,8 @@ print(head(trsf[1:5]))
 
 El dataframe `trsf` posee las variables transformadas a variables binarias.  
 
-## Partición en tres sets
 
-Para entrenar una red que presente un mejor rendimiento, los datos se dividieron en tres partes, con el fin de no seleccionar un modelo sobreajustado.  
+# Paso 5: Construcción de la Red
 
 ### Conectar H2O
 
@@ -333,6 +332,11 @@ Se traspasan los datos al cluster de H2O
 datos_h2o <- as.h2o(trsf)
 ```
 
+## Partición
+
+Para entrenar una red que presente un mejor rendimiento, los datos se dividieron en tres partes, con el fin de no seleccionar un modelo sobreajustado.  
+
+
 ```{r crear train test datasets}
 splits <- h2o.splitFrame(datos_h2o , ratios = c(0.70 , 0.15 ), seed= 1234)
 train <- h2o.assign(splits[[1]] , key= "train")
@@ -340,7 +344,7 @@ valid <- h2o.assign(splits[[2]] , key = "valid")
 test <-  h2o.assign(splits[[3]] , key = "test")
 ```
 
-# Paso 5: Construcción de la Red
+
 
 ## Selección de variables de entrada y salida
 
