@@ -19,6 +19,8 @@ output:
 
 ---
 
+# Esta linea la agregué desde el remoto
+
 ```{r librerias, include=FALSE}
 library(dplyr)
 library(tidyr)
