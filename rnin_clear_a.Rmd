@@ -19,14 +19,19 @@ output:
 
 ---
 
-# Esta linea la agregué desde el remoto
+| Versión | Fecha | Cambios |
+|:----:|:----:|:----:|
+| v1.0 | 21/12/18 | Modificando Grid Search |  
+
+#### Esta linea la agregué desde el remoto
+
 
 ```{r librerias, include=FALSE}
 library(dplyr)
 library(tidyr)
 library(caret)
 ```
- ** DOCUMENTO INCOMPLETO **    
+
  
 # Introducción
 El siguiente código desarrolla una RNA para el cálculo de rendimiento de Clear A.
