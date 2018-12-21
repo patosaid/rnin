@@ -249,9 +249,6 @@ div.tocify {
 </tr>
 </tbody>
 </table>
-<div id="esta-linea-la-agregue-desde-el-remoto" class="section level4">
-<h4>Esta linea la agregué desde el remoto</h4>
-</div>
 <div id="introduccion" class="section level1">
 <h1>Introducción</h1>
 <p>El siguiente código desarrolla una RNA para el cálculo de rendimiento de Clear A. Se realizará una primera búsqueda general por medio de un grid y ramdom search con el objetivo de encontrar rangos de algunos parámetros:</p>
@@ -617,9 +614,9 @@ print(head(trsf[1:5]))</code></pre>
 ## 6             0             0             0             0             0</code></pre>
 <p>El dataframe <code>trsf</code> posee las variables transformadas a variables binarias.</p>
 </div>
-<div id="particion-en-tres-sets" class="section level2">
-<h2>Partición en tres sets</h2>
-<p>Para entrenar una red que presente un mejor rendimiento, los datos se dividieron en tres partes, con el fin de no seleccionar un modelo sobreajustado.</p>
+</div>
+<div id="paso-5-construccion-de-la-red" class="section level1">
+<h1>Paso 5: Construcción de la Red</h1>
 <div id="conectar-h2o" class="section level3">
 <h3>Conectar H2O</h3>
 <p>Se traspasan los datos al cluster de H2O</p>
@@ -629,15 +626,15 @@ print(head(trsf[1:5]))</code></pre>
   |                                                                 |   0%
   |                                                                       
   |=================================================================| 100%</code></pre>
+</div>
+<div id="particion" class="section level2">
+<h2>Partición</h2>
+<p>Para entrenar una red que presente un mejor rendimiento, los datos se dividieron en tres partes, con el fin de no seleccionar un modelo sobreajustado.</p>
 <pre class="r"><code>splits &lt;- h2o.splitFrame(datos_h2o , ratios = c(0.70 , 0.15 ), seed= 1234)
 train &lt;- h2o.assign(splits[[1]] , key= &quot;train&quot;)
 valid &lt;- h2o.assign(splits[[2]] , key = &quot;valid&quot;)
 test &lt;-  h2o.assign(splits[[3]] , key = &quot;test&quot;)</code></pre>
 </div>
-</div>
-</div>
-<div id="paso-5-construccion-de-la-red" class="section level1">
-<h1>Paso 5: Construcción de la Red</h1>
 <div id="seleccion-de-variables-de-entrada-y-salida" class="section level2">
 <h2>Selección de variables de entrada y salida</h2>
 <pre class="r"><code>print(variables_entradas)</code></pre>
