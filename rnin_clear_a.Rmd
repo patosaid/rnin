@@ -23,7 +23,6 @@ output:
 |:----:|:----:|:----:|
 | v1.0 | 21/12/18 | Modificando Grid Search |  
 
-#### Esta linea la agregué desde el remoto
 
 
 ```{r librerias, include=FALSE}
@@ -332,10 +331,9 @@ Se traspasan los datos al cluster de H2O
 datos_h2o <- as.h2o(trsf)
 ```
 
-## Partición
+## Partición 
 
 Para entrenar una red que presente un mejor rendimiento, los datos se dividieron en tres partes, con el fin de no seleccionar un modelo sobreajustado.  
-
 
 ```{r crear train test datasets}
 splits <- h2o.splitFrame(datos_h2o , ratios = c(0.70 , 0.15 ), seed= 1234)
