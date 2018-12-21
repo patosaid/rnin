@@ -187,6 +187,7 @@ Se filtran variables según los alcances del proyecto.
 ```{r filtrado}
 datos <- filter(datos, datos$ALTURA_MEDIA >= 15 )
 datos <- filter(datos, datos$EDAD_OT >= 15 )
+datos <- filter(datos, datos$ANOS_PROYECTADOS <6 )
 datos <- filter(datos, datos$VOL_TOTAL >= 1000 )
 datos <- filter(datos, ( datos$ESQUEMA != "PULPABLE") | 
                    (datos$ESQUEMA == "PULPABLE" & datos$DENSIDAD_PODADOS == 0 
@@ -360,10 +361,10 @@ variables_entradas<- c( "COD_Z_CPINO.1",
                 "COD_Z_CPINO.8",
                 "COD_Z_CPINO.9",
                 "COD_Z_CPINO.10",
-                "ESQUEMAEXTENSIVO",
-                "ESQUEMAINTENSIVO",
-                "ESQUEMAMULTIPROPOSITO",
-                "ESQUEMAPULPABLE",
+                "ESQUEMA.EXTENSIVO",
+                "ESQUEMA.INTENSIVO",
+                "ESQUEMA.MULTIPROPOSITO",
+                "ESQUEMA.PULPABLE",
                 "DSC_SUELO.ALUVIALES",
                 "DSC_SUELO.ARCILLOSO",
                 "DSC_SUELO.ARENAS",
@@ -435,26 +436,26 @@ Se desea encontrar una combinación de hipermarámetros (idealmente) optima que 
 hyper_params <- list(
                 activation=c("Rectifier" , "Tanh" , "Maxout"),
                 hidden = list( c(20), c(20,20), c(300, 300) ,c(128,128,128) , c(64,64,64,64) ),
-                input_dropout_ratio =  c(0, 0.05, 0.1,0.2), # 0.1 or .2 sugerido , mejora generalizacion
-                adaptive_rate = TRUE,
+               #input_dropout_ratio =  c(0, 0.05, 0.1,0.2), # 0.1 or .2 sugerido , mejora generalizacion
+            #   adaptive_rate = TRUE,
               #  rho = c(0.95), 
                # epsilon = c(1e-10),
-                rate = c(0.01, 0.05,0.1,0.005),
+              #  rate = c(0.01, 0.05,0.1,0.005),
                # rate_annealing = 1e-06,
               ##  rate_decay = c( 0.3 ,0.4 ,0.1,0.05) ,
                # momentum_start = 0,
-                momentum_ramp = c(1e+06,1e+04,1e+05),
-                momentum_stable = c(0), 
-                nesterov_accelerated_gradient = TRUE,
+               # momentum_ramp = c(1e+06,1e+04,1e+05),
+                #momentum_stable = c(0), 
+               # nesterov_accelerated_gradient = TRUE,
                # hidden_dropout_ratios = NULL, 
                  #l1 = 1e-5,
                 # l2 =1e-5,
-                loss =   "Quantile" ,
-                distribution = "AUTO",
+              #  loss =   "Quantile" ,
+               # distribution = "AUTO",
              #nfolds = c(4),    # para crossvalidation
-  overwrite_with_best_model = T,
-  epochs = c( 200, 300,500),
-  train_samples_per_iteration = c(40, 100 , 200,-2,-1)
+  #overwrite_with_best_model = T,
+  epochs = c( 10,20,50)
+  #train_samples_per_iteration = c(40, 100 , 200,-2,-1)
 )
 ```
 
@@ -463,7 +464,7 @@ hyper_params <- list(
 ```{r search_criteria}
 search_criteria <- list(
                   strategy = "RandomDiscrete",
-                  stopping_tolerance = 0.0005 ,
+                  stopping_tolerance = 0.001 ,
                   max_runtime_secs = 5000,
                   max_models = 10000 ,
                   stopping_rounds = 1000,
@@ -472,9 +473,119 @@ search_criteria <- list(
                 )
 ```
 
+```{r random-search ,eval=F}
+randomSearch <- h2o.grid(
+  algorithm = "deeplearning",
+  grid_id = "CLEAR_A_V13",
+  training_frame = train,
+  validation_frame = valid,
+  x = variables_entradas,
+  y = respuesta , 
+# nfolds = 4,    # para crossvalidation
+ # overwrite_with_best_model = F,
+ # epochs = 300,
+ # train_samples_per_iteration = -2 , # 0: one epoch, -1: all available data (e.g., replicated  training data), -2: automatic
+  hyper_params = hyper_params,
+  search_criteria = search_criteria
+)
+
+``` 
+###SALIDA MODELO 
+```{r predecir y errores}
+dl_salida_grid <- h2o.getGrid( grid_id = "CLEAR_A_V13", sort_by = "mse" , decreasing = F)
+summary(dl_salida_grid)
+best_model<- h2o.getModel(dl_salida_grid@model_ids[[1]])
+summary(best_model)
+plot(best_model)
+print( h2o.performance(best_model, test))
+plot(h2o.getModel(dl_salida_grid@model_ids[[1]]))
+
+``` 
 
 
 
+## Errores
+### MSE
+
+```{r mse mae }
+mse <- function( obs , pred ){
+  return( (1/length(obs))*(sum((obs - pred)^2)))
+}
+
+mae <- function( obs, pred ){
+  return( (1/length(obs))*sum(abs(obs - pred)))
+}
+
+rmse <- function( obs , pred ){
+  return( sqrt(mse(obs,pred)))
+}
+rmsep <- function( obs , pred ){
+  return( (100/mean(obs)) * sqrt(mse(obs,pred)))
+}
+
+mape <- function( obs, pred){
+  return((100/length(obs))*sum(abs((obs - pred)/obs)))
+}
+r2 <- function ( obs, pred){
+  num = sum((pred- mean(obs))^2)
+  den = sum((obs- mean(obs))^2)
+  return(num/den)
+}
+maxABE <- function ( obs, pred){
+  return (max(abs(obs - pred)))
+}
+
+```
+
+```{r tabla error}
+ tabla_error_nombres <- c( "MSE_TRAIN",  "RMSE_TRAIN", "RMSE%_TRAIN" , "MAE_TRAIN", "r_TRAIN",
+                           "MSE_VALID", "RMSE_VALID", "RMSE%_VALID" , "MAE_VALID", "r_VALID",
+                           "MSE_TEST" , "RMSE_TEST", "RMSE%_TEST" , "MAE_TEST" , "r_TEST", 
+                           "MSE_T_TEST", "RMSE_T_TEST", "RMSE%_TEST" , "MAE_T_TEST", "r_T_TEST")
+
+
+
+```
+
+```{r funcion errores}
+errores <- function( obs , pred ){
+ return( c( mse(obs, pred) , rmse(obs, pred) , rmsep(obs,pred) ,mae(obs ,pred) , cor(obs , pred , method = "pearson")))
+}
+```
+
+```{r error por particion}
+errores_datos <- function( model , data ) {
+    datos_e <- as.data.frame(data)
+    estimaciones <- h2o.predict(model , data)
+    estimaciones <- as.data.frame(estimaciones)
+    
+    return(errores(datos_e$REND_CLEAR_A_REAL , estimaciones$predict) )
+}
+```
+
+
+```{r error volurod}
+errores_volu <- function( data) {
+    dato_e <- as.data.frame(data) # ojo aca
+    dato_e <- drop_na(dato_e , VOLUROD_SF_CLEAR_A)
+    dato_e <- filter(dato_e, dato_e$VOLUROD_SF_PULP > 0 ) #porque hay observaciones que tienen volurod CERO
+#testv <- testv[testv$REND_CLEAR_A_REAL > 0,]
+return (errores(dato_e$REND_CLEAR_A_REAL , dato_e$VOLUROD_SF_CLEAR_A))
+}
+```
+
+
+```{r todos los errores}
+error_enfila <- c( errores_datos( best_model, train) ,
+                       errores_datos( best_model, valid) ,
+                       errores_datos( best_model, test ),
+                       errores_volu( datos))
+error_enfila <- as.data.frame(t(error_enfila))
+colnames(error_enfila) <- tabla_error_nombres
+rownames(error_enfila) <- NULL
+str(error_enfila)
+kable(round( error_enfila, 2))
+```
 
 
 
