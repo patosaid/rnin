@@ -586,6 +586,9 @@ rownames(error_enfila) <- NULL
 str(error_enfila)
 kable(round( error_enfila, 2))
 ```
+# automatizas por cantidad de modelos ........
+# agregar gaficos en exploración
+# agregar lista de variables de importancia
 
 
 
