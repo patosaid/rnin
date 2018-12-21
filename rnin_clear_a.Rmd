@@ -318,7 +318,7 @@ El dataframe `trsf` posee las variables transformadas a variables binarias.
 
 # Paso 5: Construcción de la Red
 
-### Conectar H2O
+## Conectar H2O
 
 ```{r conectar h2o, message=FALSE, warning=FALSE, include=FALSE}
 library(h2o)
@@ -408,9 +408,28 @@ variables_entradas<- c( "COD_Z_CPINO.1",
 print(variables_entradas)
 ```
 
-### Especificar Hiperparámetros
+## Especificar Hiperparámetros
 
-Poner aca un blabla sobre los hiper
+Se utilizó la función `h2o.grid()` para realizar una busqueda aleatoria o Random Grid Search (RGS)
+RGS es una opción más rapida para construir modelos con diferentes combinaciones 
+de hiperparámetro. 
+Se desea encontrar una combinación de hipermarámetros (idealmente) optima que maximice el rendimiento del modelo. 
+
+
+### Funciones de Activación
+
+* `Rectifier` : función por defecto. Es la más rapida y la más versatil. Sin embargo, puede conducir a la inestabilidad y tiende a ser de menor precisión.  
+* `Tanh` : La tangente hiperbólica es una variante escalada y desplazada de la función de activación sigmoide. Puede tomar valores de -1 a 1 y se centra alrededor de 0. Tanh necesita más potencia de cálculo que, por ejemplo, La función `rectifier`.  
+* `Maxout` : Es una función de activación que es el máximo de las entradas. Es computacionalmente bastante exigente pero puede producir modelos de alta precisión.  
+* `...WithDropout` :  cuando se especifica abandono, se entrena un subconjunto aleatorio de la red y se promedian los pesos de todas las subredes. Funciona junto con el parámetro hidden_dropout_ratios, que controla la cantidad de neuronas de capa que se eliminan aleatoriamente para cada capa oculta. Los índices de abandono ocultos son útiles para evitar el sobreajuste.  
+
+### Penalidades
+
+* `L1` : Deja que solo los pesos fuertes sobrevivan.  
+* `L2` : Previene que lo pesos se vulvan muy altos.
+
+* `Rho` : Ayuda en la actualización de los pesos.  
+* `epsilon` : Evita atascarse en un minimo local.  
 
 ```{r hyper-parametros}
 hyper_params <- list(
